@@ -1,0 +1,5 @@
+{
+  "name": "FMA Groove Player",
+  "description": "A sleek, responsive music player web app built with React, TypeScript, and Tailwind CSS, allowing users to search and stream music from the Free Music Archive.",
+  "requestFramePermissions": []
+}
