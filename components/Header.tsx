@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 
 interface HeaderProps {
-  onSearch: (query: string, searchBy: 'keyword' | 'genre') => void;
+  onSearch: (params: { query: string; genre: string }) => void;
 }
 
 const GENRES = ['Electronic', 'Pop', 'Rock', 'Hip-Hop', 'Instrumental', 'Cinematic'];
 
 export const Header: React.FC<HeaderProps> = ({ onSearch }) => {
   const [query, setQuery] = useState('');
+  const [selectedGenre, setSelectedGenre] = useState('Electronic');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSearch(query, 'keyword');
+    onSearch({ query, genre: selectedGenre });
   };
 
   const handleGenreChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setQuery(''); // Clear text input when a genre is selected
-    onSearch(e.target.value, 'genre');
+    const newGenre = e.target.value;
+    setSelectedGenre(newGenre);
+    onSearch({ query, genre: newGenre });
   }
 
   return (
@@ -52,6 +54,7 @@ export const Header: React.FC<HeaderProps> = ({ onSearch }) => {
                 <select 
                     id="genre-select"
                     onChange={handleGenreChange}
+                    value={selectedGenre}
                     className="block w-full pl-3 pr-10 py-2 border border-transparent rounded-md leading-5 bg-slate-800 text-slate-300 focus:outline-none focus:bg-slate-700 focus:ring-2 focus:ring-sky-500 focus:border-sky-500 sm:text-sm transition"
                     aria-label="Filter by genre"
                 >

@@ -14,7 +14,7 @@ const mockTracks: Track[] = [
     album_title: 'single',
     track_duration: '00:03:07',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FMonplaisir_-_single_-_20190116191929316.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/sintel/snow-fight.mp3',
+    track_listen_url: 'https://storage.googleapis.com/automotive-media/The_Messenger.mp3',
     genres: ['Electronic', 'Pop']
   },
   {
@@ -24,7 +24,7 @@ const mockTracks: Track[] = [
     album_title: 'Hi-Fi',
     track_duration: '00:03:04',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FJahzzar_-_Hi-Fi_-_20181017163855503.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/sintel/bad-frogs.mp3',
+    track_listen_url: 'https://storage.googleapis.com/automotive-media/Jazz_In_Paris.mp3',
     genres: ['Electronic', 'Instrumental']
   },
   {
@@ -34,7 +34,7 @@ const mockTracks: Track[] = [
     album_title: 'Action',
     track_duration: '00:02:11',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FComa-Media_-_Action_-_20220202102143891.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/sintel/the-secret-plus.mp3',
+    track_listen_url: 'https://storage.googleapis.com/media-session/big-buck-bunny/prelude.mp3',
     genres: ['Rock', 'Cinematic']
   },
   {
@@ -44,7 +44,7 @@ const mockTracks: Track[] = [
     album_title: 'single',
     track_duration: '00:03:00',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FMonplaisir_-_single_-_20190116191929316.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/caminandes/short.mp3',
+    track_listen_url: 'https://storage.googleapis.com/automotive-media/All_That_Jazz.mp3',
     genres: ['Electronic', 'Pop']
   },
   {
@@ -54,7 +54,7 @@ const mockTracks: Track[] = [
     album_title: 'Powerful trap',
     track_duration: '00:02:43',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FComa-Media_-_Powerful_trap_-_20220201111621644.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/big-buck-bunny/prelude.mp3',
+    track_listen_url: 'https://storage.googleapis.com/media-session/elephants-dream/the-wires.mp3',
     genres: ['Hip-Hop', 'Instrumental']
   },
   {
@@ -64,37 +64,39 @@ const mockTracks: Track[] = [
     album_title: 'Upbeat and Happy',
     track_duration: '00:02:14',
     track_image_file: 'https://freemusicarchive.org/image/?file=images%2Falbums%2FLesfm_-_Upbeat_and_Happy_-_2022010492543884.jpg&width=290&height=290&type=album',
-    track_listen_url: 'https://storage.googleapis.com/media-session/elephants-dream/the-wires.mp3',
+    track_listen_url: 'https://storage.googleapis.com/media-session/sintel/sintel-short.mp3',
     genres: ['Pop', 'Instrumental']
   }
 ];
 
 // This function currently returns mock data.
 // To use the live API, replace the mock logic with the commented-out fetch call.
-export const searchTracks = async (query: string, searchBy: 'keyword' | 'genre' = 'keyword'): Promise<Track[]> => {
-  console.log(`Searching for: ${query} by ${searchBy}`);
+export const searchTracks = async ({ query, genre }: { query: string; genre: string }): Promise<Track[]> => {
+  console.log(`Searching for query: "${query}" in genre: "${genre}"`);
 
   // --- MOCK DATA IMPLEMENTATION ---
   return new Promise((resolve) => {
     setTimeout(() => {
-      if (!query) {
-        resolve(mockTracks);
-        return;
-      }
+      let results: Track[] = [...mockTracks];
       const lowerCaseQuery = query.toLowerCase();
-      let results: Track[];
+      const lowerCaseGenre = genre.toLowerCase();
 
-      if (searchBy === 'genre') {
-        results = mockTracks.filter(track =>
-          track.genres.some(genre => genre.toLowerCase() === lowerCaseQuery)
+      // 1. Filter by genre if one is selected
+      if (lowerCaseGenre && lowerCaseGenre !== "all genres") {
+        results = results.filter(track =>
+          track.genres.some(g => g.toLowerCase() === lowerCaseGenre)
         );
-      } else { // 'keyword' search
-        results = mockTracks.filter(
+      }
+
+      // 2. Filter by keyword on the remaining tracks
+      if (lowerCaseQuery) {
+        results = results.filter(
           (track) =>
             track.track_title.toLowerCase().includes(lowerCaseQuery) ||
             track.artist_name.toLowerCase().includes(lowerCaseQuery)
         );
       }
+      
       resolve(results);
     }, 500); // Simulate network delay
   });
@@ -103,15 +105,21 @@ export const searchTracks = async (query: string, searchBy: 'keyword' | 'genre' 
   // --- LIVE API IMPLEMENTATION ---
   if (FMA_API_KEY === 'YOUR_FMA_API_KEY_HERE') {
     console.warn('FMA API key is not set. Returning mock data.');
-    return mockTracks;
+    return mockTracks; // Fallback to mock data
   }
   
-  let url: string;
-  if (searchBy === 'genre') {
-    url = `${API_BASE_URL}?api_key=${FMA_API_KEY}&genres=${encodeURIComponent(query)}&limit=20`;
-  } else {
-    url = `${API_BASE_URL}?api_key=${FMA_API_KEY}&q=${encodeURIComponent(query)}&limit=20`;
+  const params = new URLSearchParams({
+    api_key: FMA_API_KEY,
+    limit: '20'
+  });
+  if (genre) {
+    params.set('genres', genre);
   }
+  if (query) {
+    params.set('q', query);
+  }
+  
+  const url = `${API_BASE_URL}?${params.toString()}`;
 
   try {
     const response = await fetch(url);
@@ -139,4 +147,44 @@ export const searchTracks = async (query: string, searchBy: 'keyword' | 'genre' 
     return [];
   }
   */
+};
+
+
+const mockLyricsDb: Record<string, string> = {
+  '107031': `(Verse 1)
+Got the rhythm in my feet
+And I'm walking down the street
+Sun is shining, feeling neat
+Can't be beat, can't be beat
+
+(Chorus)
+Just do it, do it, do it
+There's really nothing to it
+Just get up and go through it
+Yeah, do it, do it, do it`,
+  '102141': `(Instrumental)`,
+  '173256': `(Epic instrumental buildup)
+
+(Sudden stop)
+
+(Explosion of sound)`,
+  '172826': `(Verse 1)
+Woke up this morning, sky was bright
+Everything's gonna be alright
+Got a smile on my face, a spring in my step
+Yeah, today's a good day, you can bet
+
+(Chorus)
+Feeling upbeat and happy
+Nothing's gonna get me down
+Singing a cheerful snappy
+Tune all over town!`
+};
+
+export const fetchLyrics = (trackId: string): Promise<string | null> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve(mockLyricsDb[trackId] || null);
+    }, 800); // Simulate network delay for fetching lyrics
+  });
 };

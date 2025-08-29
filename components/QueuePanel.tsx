@@ -103,16 +103,31 @@ export const QueuePanel: React.FC<QueuePanelProps> = ({
                     <div className="flex-shrink-0 cursor-grab touch-none mr-2 text-slate-500" aria-label="Drag to reorder">
                       <DragHandleIcon />
                     </div>
-                    <img
-                      src={track.track_image_file || 'https://picsum.photos/48'}
-                      alt={track.album_title}
-                      className={`w-12 h-12 rounded-md object-cover mr-3 transition-all duration-300 ${isCurrent ? 'ring-2 ring-offset-2 ring-offset-slate-700/50 ring-sky-400' : ''}`}
-                    />
+                    <button
+                      onClick={() => onPlayTrack(index)}
+                      aria-label={`Play ${track.track_title}`}
+                      className={`flex-shrink-0 mr-4 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-800 focus:ring-sky-500 transition-all duration-300 ${isCurrent ? 'ring-2 ring-sky-400' : ''}`}
+                    >
+                      <img
+                        src={track.track_image_file || 'https://picsum.photos/64'}
+                        alt={track.album_title}
+                        className="w-16 h-16 rounded-md object-cover"
+                      />
+                    </button>
                     <div className="flex-grow min-w-0 cursor-pointer" onClick={() => onPlayTrack(index)}>
                       <h3 className={`font-medium truncate ${isCurrent ? 'text-sky-400' : 'text-slate-200'}`}>{track.track_title}</h3>
                       <p className="text-sm text-slate-400 truncate">{track.artist_name}</p>
                       {track.genres && track.genres.length > 0 && (
-                        <p className="text-xs text-slate-500 truncate">{track.genres.join(', ')}</p>
+                        <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                          {track.genres.slice(0, 2).map((genre) => (
+                            <span
+                              key={genre}
+                              className="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-600 text-slate-300"
+                            >
+                              {genre}
+                            </span>
+                          ))}
+                        </div>
                       )}
                     </div>
                     <div className="w-6 h-6 mx-2 flex items-center justify-center text-sky-400">

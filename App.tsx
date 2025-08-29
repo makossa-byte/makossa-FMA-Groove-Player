@@ -16,16 +16,23 @@ const App: React.FC = () => {
   const [volume, setVolume] = useState<number>(0.8);
   const [isQueueVisible, setIsQueueVisible] = useState<boolean>(false);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [repeatMode, setRepeatMode] = useState<'none' | 'all' | 'one'>('all');
+  const [replayTrigger, setReplayTrigger] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  const lastVolumeRef = useRef<number>(0.8);
   const isSeeking = useRef(false);
 
   const currentTrack = currentTrackIndex !== null ? playlist[currentTrackIndex] : null;
 
+  const clearPlaybackError = useCallback(() => {
+    setPlaybackError(null);
+  }, []);
+
   const loadInitialTracks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const initialTracks = await searchTracks('electronic', 'genre');
+      const initialTracks = await searchTracks({ query: '', genre: 'Electronic' });
       setTracks(initialTracks);
       // We start with an empty queue, user can build it or start playing from search
       if (playlist.length === 0) {
@@ -45,8 +52,7 @@ const App: React.FC = () => {
     if (playlist.length === 0) {
         loadInitialTracks();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loadInitialTracks, playlist.length]);
   
   useEffect(() => {
     if (audioRef.current) {
@@ -59,28 +65,48 @@ const App: React.FC = () => {
     if (!audio) return;
 
     if (isPlaying) {
-      if (audio.readyState > 0) {
-        const playPromise = audio.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            if (error.name !== 'AbortError') {
-              console.error("Error playing audio:", error);
-              setPlaybackError("Playback failed. Please try another track.");
-              setIsPlaying(false);
-            }
-          });
-        }
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          // AbortError is common when a new play request interrupts an old one. We can safely ignore it.
+          if (error.name !== 'AbortError') {
+            console.error("Error playing audio:", error);
+            setPlaybackError("Playback failed. Please try another track.");
+            setIsPlaying(false);
+          }
+        });
       }
     } else {
       audio.pause();
     }
-  }, [isPlaying, currentTrack?.track_id]);
+  }, [isPlaying, currentTrack, replayTrigger]);
 
-  const handleSearch = async (query: string, searchBy: 'keyword' | 'genre' = 'keyword') => {
+  const handleAudioError = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !audio.error) return;
+
+    let message = 'An unknown playback error occurred.';
+    switch (audio.error.code) {
+      case audio.error.MEDIA_ERR_NETWORK:
+        message = 'A network error occurred.';
+        break;
+      case audio.error.MEDIA_ERR_DECODE:
+        message = 'Audio decoding error.';
+        break;
+      case audio.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+        message = 'Error: Track could not be loaded.';
+        break;
+    }
+    console.error("Audio Element Error:", audio.error.message);
+    setPlaybackError(message);
+    setIsPlaying(false);
+  }, []);
+
+  const handleSearch = async ({ query, genre }: { query: string; genre: string }) => {
     setIsLoading(true);
     setTracks([]);
     try {
-      const results = await searchTracks(query, searchBy);
+      const results = await searchTracks({ query, genre });
       setTracks(results);
     } catch (error) {
       console.error('Search failed:', error);
@@ -90,7 +116,7 @@ const App: React.FC = () => {
   };
   
   const playTrack = (track: Track) => {
-    setPlaybackError(null);
+    clearPlaybackError();
     const indexInPlaylist = playlist.findIndex(t => t.track_id === track.track_id);
     
     if (indexInPlaylist !== -1) {
@@ -109,8 +135,8 @@ const App: React.FC = () => {
   };
 
   const playTrackFromQueue = (index: number) => {
+    clearPlaybackError();
     if(index >= 0 && index < playlist.length) {
-      setPlaybackError(null);
       setCurrentTrackIndex(index);
       setIsPlaying(true);
       setIsQueueVisible(false);
@@ -118,11 +144,11 @@ const App: React.FC = () => {
   };
 
   const addToQueue = (track: Track) => {
+    clearPlaybackError();
     if (!playlist.find(t => t.track_id === track.track_id)) {
       const newPlaylist = [...playlist, track];
       setPlaylist(newPlaylist);
       if (currentTrackIndex === null) {
-        setPlaybackError(null);
         setCurrentTrackIndex(0);
         setIsPlaying(true);
       }
@@ -130,6 +156,7 @@ const App: React.FC = () => {
   };
 
   const removeFromQueue = (trackId: string) => {
+    clearPlaybackError();
     const trackToRemoveIndex = playlist.findIndex(t => t.track_id === trackId);
     if (trackToRemoveIndex === -1) return;
 
@@ -149,7 +176,7 @@ const App: React.FC = () => {
   };
   
   const clearQueue = () => {
-    setPlaybackError(null);
+    clearPlaybackError();
     setPlaylist([]);
     setCurrentTrackIndex(null);
     setIsPlaying(false);
@@ -158,7 +185,7 @@ const App: React.FC = () => {
 
   const shufflePlaylist = () => {
     if (playlist.length <= 1) return;
-    setPlaybackError(null);
+    clearPlaybackError();
 
     const currentPlayingTrack = currentTrack;
     
@@ -176,7 +203,7 @@ const App: React.FC = () => {
 
   const handleReorderPlaylist = (startIndex: number, endIndex: number) => {
     if (startIndex === endIndex) return;
-    setPlaybackError(null);
+    clearPlaybackError();
 
     const newPlaylist = [...playlist];
     const [movedTrack] = newPlaylist.splice(startIndex, 1);
@@ -199,13 +226,13 @@ const App: React.FC = () => {
 
   const togglePlayPause = () => {
     if (currentTrack) {
-        setPlaybackError(null);
+        clearPlaybackError();
         setIsPlaying(!isPlaying);
     }
   };
 
   const playNext = useCallback(() => {
-    setPlaybackError(null);
+    clearPlaybackError();
     if (playlist.length === 0) {
       setIsPlaying(false);
       return;
@@ -213,11 +240,11 @@ const App: React.FC = () => {
     const nextIndex = currentTrackIndex === null ? 0 : (currentTrackIndex + 1) % playlist.length;
     setCurrentTrackIndex(nextIndex);
     setIsPlaying(true);
-  }, [playlist.length, currentTrackIndex]);
+  }, [playlist.length, currentTrackIndex, clearPlaybackError]);
 
   const playPrev = () => {
+    clearPlaybackError();
     if (playlist.length > 0) {
-      setPlaybackError(null);
       setCurrentTrackIndex((prevIndex) => {
         if (prevIndex === null) return 0;
         return (prevIndex - 1 + playlist.length) % playlist.length;
@@ -225,6 +252,32 @@ const App: React.FC = () => {
       setIsPlaying(true);
     }
   };
+
+  const toggleRepeatMode = useCallback(() => {
+    clearPlaybackError();
+    setRepeatMode(prevMode => {
+      if (prevMode === 'none') return 'all';
+      if (prevMode === 'all') return 'one';
+      return 'none';
+    });
+  }, [clearPlaybackError]);
+
+  const handleTrackEnd = useCallback(() => {
+    if (repeatMode === 'one') {
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        setReplayTrigger(t => t + 1);
+      }
+    } else if (repeatMode === 'all') {
+        playNext();
+    } else { // 'none'
+        if (currentTrackIndex !== null && currentTrackIndex < playlist.length - 1) {
+            playNext();
+        } else {
+            setIsPlaying(false);
+        }
+    }
+  }, [repeatMode, playNext, currentTrackIndex, playlist.length]);
   
   const onTimeUpdate = () => {
     if (audioRef.current && !isSeeking.current) {
@@ -233,10 +286,30 @@ const App: React.FC = () => {
   };
 
   const handleProgressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    clearPlaybackError();
     if (audioRef.current) {
         const newTime = Number(e.target.value);
         setTrackProgress(newTime);
         audioRef.current.currentTime = newTime;
+    }
+  };
+  
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    clearPlaybackError();
+    const newVolume = Number(e.target.value);
+    setVolume(newVolume);
+    if (newVolume > 0) {
+        lastVolumeRef.current = newVolume;
+    }
+  };
+
+  const toggleMute = () => {
+    clearPlaybackError();
+    if (volume > 0) {
+        lastVolumeRef.current = volume;
+        setVolume(0);
+    } else {
+        setVolume(lastVolumeRef.current > 0 ? lastVolumeRef.current : 0.5);
     }
   };
 
@@ -283,11 +356,14 @@ const App: React.FC = () => {
           onPlayPause={togglePlayPause}
           onNext={playNext}
           onPrev={playPrev}
-          onVolumeChange={(e) => setVolume(Number(e.target.value))}
+          onVolumeChange={handleVolumeChange}
           onProgressChange={handleProgressChange}
           onSeekStart={handleSeekStart}
           onSeekEnd={handleSeekEnd}
           onToggleQueue={toggleQueue}
+          onToggleMute={toggleMute}
+          repeatMode={repeatMode}
+          onToggleRepeatMode={toggleRepeatMode}
           playbackError={playbackError}
         />
       )}
@@ -297,25 +373,8 @@ const App: React.FC = () => {
         ref={audioRef}
         src={currentTrack?.track_listen_url}
         onTimeUpdate={onTimeUpdate}
-        onEnded={playNext}
-        onLoadedData={() => {
-            setPlaybackError(null);
-            if (isPlaying) {
-              const playPromise = audioRef.current?.play();
-              if (playPromise !== undefined) {
-                  playPromise.catch(error => {
-                      console.error("Error playing audio onLoadedData:", error);
-                      setPlaybackError("Could not play this track.");
-                      setIsPlaying(false);
-                  });
-              }
-            }
-        }}
-        onError={() => {
-            console.error("Audio element error for src:", currentTrack?.track_listen_url);
-            setPlaybackError("Error: Track could not be loaded.");
-            setIsPlaying(false);
-        }}
+        onEnded={handleTrackEnd}
+        onError={handleAudioError}
       />
     </div>
   );

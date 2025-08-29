@@ -5,8 +5,11 @@ import { PauseIcon } from './icons/PauseIcon';
 import { NextIcon } from './icons/NextIcon';
 import { PrevIcon } from './icons/PrevIcon';
 import { VolumeUpIcon } from './icons/VolumeUpIcon';
+import { VolumeOffIcon } from './icons/VolumeOffIcon';
 import { QueueListIcon } from './icons/QueueListIcon';
 import { ErrorIcon } from './icons/ErrorIcon';
+import { RepeatIcon } from './icons/RepeatIcon';
+import { RepeatOneIcon } from './icons/RepeatOneIcon';
 
 interface PlayerProps {
   currentTrack: Track;
@@ -15,6 +18,7 @@ interface PlayerProps {
   duration: number;
   volume: number;
   playbackError: string | null;
+  repeatMode: 'none' | 'all' | 'one';
   onPlayPause: () => void;
   onNext: () => void;
   onPrev: () => void;
@@ -23,6 +27,8 @@ interface PlayerProps {
   onSeekStart: () => void;
   onSeekEnd: () => void;
   onToggleQueue: () => void;
+  onToggleMute: () => void;
+  onToggleRepeatMode: () => void;
 }
 
 const formatTime = (seconds: number) => {
@@ -34,10 +40,16 @@ const formatTime = (seconds: number) => {
 }
 
 export const Player: React.FC<PlayerProps> = ({ 
-    currentTrack, isPlaying, progress, duration, volume, playbackError,
+    currentTrack, isPlaying, progress, duration, volume, playbackError, repeatMode,
     onPlayPause, onNext, onPrev, onVolumeChange, onProgressChange,
-    onSeekStart, onSeekEnd, onToggleQueue
+    onSeekStart, onSeekEnd, onToggleQueue, onToggleMute, onToggleRepeatMode
 }) => {
+  const isMuted = volume === 0;
+  const repeatAriaLabel = 
+    repeatMode === 'none' ? 'Enable repeat' :
+    repeatMode === 'all' ? 'Enable repeat one' :
+    'Disable repeat';
+
   return (
     <footer className="fixed bottom-0 left-0 right-0 bg-slate-800/80 backdrop-blur-lg z-20 border-t border-slate-700">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -95,11 +107,16 @@ export const Player: React.FC<PlayerProps> = ({
 
           {/* Volume Control & Queue Toggle */}
           <div className="w-1/4 flex items-center justify-end">
+             <button onClick={onToggleRepeatMode} className={`p-2 transition-colors ${repeatMode !== 'none' ? 'text-sky-400 hover:text-sky-300' : 'text-slate-400 hover:text-white'}`} aria-label={repeatAriaLabel}>
+                {repeatMode === 'one' ? <RepeatOneIcon /> : <RepeatIcon />}
+             </button>
              <button onClick={onToggleQueue} className="p-2 text-slate-400 hover:text-white transition-colors" aria-label="Toggle queue">
                 <QueueListIcon />
              </button>
              <div className="items-center hidden md:flex">
-                <VolumeUpIcon />
+                <button onClick={onToggleMute} className="p-2 text-slate-400 hover:text-white transition-colors" aria-label={isMuted ? 'Unmute' : 'Mute'}>
+                  {isMuted ? <VolumeOffIcon /> : <VolumeUpIcon />}
+                </button>
                 <input 
                     type="range"
                     min="0"
