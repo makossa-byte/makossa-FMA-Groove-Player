@@ -242,7 +242,7 @@ const App: React.FC = () => {
     setIsPlaying(true);
   }, [playlist.length, currentTrackIndex, clearPlaybackError]);
 
-  const playPrev = () => {
+  const playPrev = useCallback(() => {
     clearPlaybackError();
     if (playlist.length > 0) {
       setCurrentTrackIndex((prevIndex) => {
@@ -251,7 +251,7 @@ const App: React.FC = () => {
       });
       setIsPlaying(true);
     }
-  };
+  }, [playlist.length, clearPlaybackError]);
 
   const toggleRepeatMode = useCallback(() => {
     clearPlaybackError();
@@ -313,7 +313,10 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSeekStart = () => { isSeeking.current = true; }
+  const handleSeekStart = () => { 
+    clearPlaybackError();
+    isSeeking.current = true; 
+  }
   const handleSeekEnd = () => { isSeeking.current = false; }
   const toggleQueue = () => setIsQueueVisible(prev => !prev);
   

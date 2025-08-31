@@ -100,7 +100,7 @@ export const QueuePanel: React.FC<QueuePanelProps> = ({
                     onDragEnd={handleDragEnd}
                     onDragOver={handleDragOver}
                     >
-                    <div className="flex-shrink-0 cursor-grab touch-none mr-2 text-slate-500" aria-label="Drag to reorder">
+                    <div className="flex-shrink-0 cursor-grab touch-none mr-2 text-slate-500 hover:text-slate-300 transition-all opacity-0 group-hover:opacity-100" aria-label="Drag to reorder">
                       <DragHandleIcon />
                     </div>
                     <button
